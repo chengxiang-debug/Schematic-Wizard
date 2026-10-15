@@ -1,0 +1,28 @@
+{
+  "name": "autodraw",
+  "productName": "AutoDraw",
+  "version": "2.0.0",
+  "description": "AutoDraw — KiCad 10 一键电路生成器",
+  "main": "main.js",
+  "author": "guome",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "prepack": "node ../pack-hooks.js stash",
+    "pack": "electron-packager . AutoDraw --platform=win32 --arch=x64 --out=.. --overwrite --no-asar --icon=icon.ico \"--ignore=^/node_modules\" \"--ignore=^/shot\\.js$\" \"--ignore=^/package-lock\\.json$\" \"--ignore=^/autodraw_settings\\.json$\"",
+    "postpack": "node ../pack-hooks.js restore"
+  },
+  "files": [
+    "main.js",
+    "engine-host.js",
+    "preload.js",
+    "package.json",
+    "icon.ico",
+    "renderer/**",
+    "engine/**"
+  ],
+  "devDependencies": {
+    "@electron/packager": "^18.4.4",
+    "electron": "^33.0.0"
+  }
+}

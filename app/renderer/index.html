@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file:;">
+<title>AutoDraw</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="rail">
+    <div class="brand">
+      <span class="mark"></span>
+      <span class="brand-text">
+        <b>AutoDraw</b>
+        <em>KiCad 一键出图</em>
+      </span>
+    </div>
+    <nav class="nav">
+      <a href="#browse" data-view="browse" class="nav-item is-active">
+        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+        <span>浏览预设</span>
+      </a>
+      <a href="#batch" data-view="batch" class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg>
+        <span>批量生成</span>
+        <i class="nav-badge" id="navSel" hidden>0</i>
+      </a>
+      <a href="#settings" data-view="settings" class="nav-item">
+        <svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9" cy="7" r="2.1"/><circle cx="15" cy="12" r="2.1"/><circle cx="7" cy="17" r="2.1"/></svg>
+        <span>设置</span>
+      </a>
+    </nav>
+    <div class="rail-foot">
+      <div id="envBadge" class="badge"><i class="dot"></i><span>检测中…</span></div>
+      <button class="ghost tiny" id="btnHelp">快捷键 ?</button>
+      <div id="buildInfo" class="build"></div>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <!-- ================= 浏览 ================= -->
+    <section class="view is-active" id="view-browse">
+      <div class="head">
+        <h1>预设库</h1>
+        <p class="sub">按分类翻模块，选中即在右边出原理图预览，不用等 KiCad 跑。勾选多条可以送去批量生成。</p>
+        <div class="headstats" id="libStats"></div>
+      </div>
+
+      <div class="workspace">
+        <div class="panel browser">
+          <div class="searchbox">
+            <input id="presetSearch" class="search" type="search" placeholder="搜名称 / 参数 / 元件，按 / 聚焦" autocomplete="off">
+            <button class="icon-btn" id="btnFavOnly" title="只看收藏 ★">★</button>
+            <button class="icon-btn" id="btnRandom" title="随机来一条">🎲</button>
+          </div>
+          <div class="cats" id="catChips"></div>
+          <div class="listwrap" id="listScroll">
+            <div class="listvirt" id="presetList"></div>
+          </div>
+          <div class="panel-foot selbar">
+            <span class="muted" id="selInfo">未勾选</span>
+            <button class="ghost" id="btnSelectShown">全选筛出的</button>
+            <button class="ghost" id="btnClearSel">清空</button>
+            <button class="primary" id="btnSendBatch">送去生成</button>
+          </div>
+        </div>
+
+        <div class="stagecol">
+          <div class="panel preview">
+            <div class="panel-head">
+              <h2 id="previewTitle">预览</h2>
+              <span class="tag" id="previewCat"></span>
+              <div class="tools">
+                <button class="ghost tiny" id="btnZoomOut">−</button>
+                <button class="ghost tiny" id="btnZoomIn">+</button>
+                <button class="ghost tiny" id="btnZoomFit">适应</button>
+                <label class="check small"><input type="checkbox" id="optGrid" checked><span>网格</span></label>
+                <label class="check small"><input type="checkbox" id="optNets" checked><span>网络配色</span></label>
+              </div>
+            </div>
+            <div class="canvaswrap">
+              <div class="canvas" id="previewCanvas"></div>
+              <div class="empty" id="previewEmpty">左侧选一条预设</div>
+            </div>
+            <div class="readout" id="pinReadout">悬停引脚看网络，点击网络名可以只亮一条</div>
+          </div>
+
+          <div class="panel info">
+            <div class="cols3">
+              <div>
+                <div class="blocktitle">说明</div>
+                <p class="desc" id="infoDesc"></p>
+                <div class="chips" id="infoParams"></div>
+                <div class="actions tight">
+                  <button class="primary" id="btnRunOne">生成这一条</button>
+                  <button class="btn" id="btnFav">★ 收藏</button>
+                  <button class="ghost" id="btnToggleSel">勾选</button>
+                </div>
+              </div>
+              <div>
+                <div class="blocktitle">元件 <span class="muted" id="infoCounts"></span></div>
+                <table class="bom"><tbody id="infoBom"></tbody></table>
+              </div>
+              <div>
+                <div class="blocktitle">网络</div>
+                <div class="netlist" id="infoNets"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 批量 ================= -->
+    <section class="view" id="view-batch">
+      <div class="head">
+        <h1>批量生成</h1>
+        <p class="sub">产出原理图、ERC、SVG/PDF、网表、PCB、DRC、3D 渲染、BOM 与报告，外加嘉立创导入包和下单三件套。目录框可以直接从资源管理器拖进来。</p>
+      </div>
+
+      <div class="panel">
+        <div class="field">
+          <label for="outdir">输出目录</label>
+          <div class="row">
+            <input id="outdir" class="grow" type="text" spellcheck="false" list="outdirHistory">
+            <datalist id="outdirHistory"></datalist>
+            <button class="btn" id="btnBrowse">浏览</button>
+            <button class="btn" id="btnOpenDir" title="用资源管理器打开">打开</button>
+          </div>
+        </div>
+        <div class="field inline">
+          <label class="check"><input type="checkbox" id="optSch"><span>原理图 + ERC + SVG/PDF/网表</span></label>
+          <label class="check"><input type="checkbox" id="optPcb"><span>PCB + DRC + 3D 渲染</span></label>
+          <label class="check"><input type="checkbox" id="optJlc"><span>嘉立创导入包 + 下单三件套</span></label>
+          <label class="check" title="同拓扑的参数变体默认沿用已通过的 ERC 结果；勾上则每条都真跑一遍，慢但最稳"><input type="checkbox" id="optStrict"><span>逐条真跑 ERC（慢，最稳）</span></label>
+        </div>
+        <div class="actions">
+          <button class="primary" id="btnRun">生成所选 <span id="runCount"></span></button>
+          <button class="btn" id="btnRunFav">生成收藏</button>
+          <button class="btn" id="btnRunCat">生成本分类</button>
+          <button class="danger" id="btnStop" disabled>停止</button>
+        </div>
+        <div class="progwrap">
+          <div class="prog"><i id="progFill"></i></div>
+          <div class="progtxt"><span id="progPct">0%</span><span id="progLabel">就绪</span><span id="progEta"></span></div>
+        </div>
+      </div>
+
+      <div class="panel queue">
+        <div class="panel-head">
+          <h2>队列</h2>
+          <span class="muted" id="queueStats"></span>
+          <div class="tools">
+            <label class="check small"><input type="checkbox" id="optFailOnly"><span>只看有问题</span></label>
+          </div>
+        </div>
+        <div class="listwrap" id="queueScroll">
+          <div class="listvirt queuevirt" id="queueList"></div>
+        </div>
+      </div>
+
+      <div class="cols even">
+        <div class="panel">
+          <div class="panel-head"><h2>最近结果</h2><span class="muted" id="resultKey">尚未生成</span></div>
+          <div class="chips" id="resultChips"></div>
+          <div class="files" id="resultFiles"></div>
+          <div class="actions jlcbar">
+            <button class="btn" id="btnLceda">打开嘉立创 EDA</button>
+            <button class="ghost" id="btnReadme">导入说明</button>
+            <span class="muted">导入包是 zip：文件 → 导入 → KiCad</span>
+          </div>
+        </div>
+
+        <div class="panel log">
+          <div class="panel-head">
+            <h2>引擎日志</h2>
+            <div class="tools">
+              <input id="logFilter" class="search tiny" type="search" placeholder="过滤…" autocomplete="off">
+              <span class="muted" id="logCount">0 行</span>
+              <label class="check small"><input type="checkbox" id="optFollow" checked><span>跟随</span></label>
+              <button class="ghost tiny" id="btnCopyLog">复制</button>
+              <button class="ghost" id="btnClearLog">清空</button>
+            </div>
+          </div>
+          <pre id="logBox" class="logbox"></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= 设置 ================= -->
+    <section class="view" id="view-settings">
+      <div class="head">
+        <h1>设置</h1>
+        <p class="sub">改完自动保存。配置写在程序旁边的 <code>autodraw_settings.json</code>，整份文件夹拷到别的机器也能用。</p>
+      </div>
+      <div class="cols even">
+        <div class="panel">
+          <div class="panel-head"><h2>外部工具</h2></div>
+          <div class="field">
+            <label for="setKiCadRoot">KiCad 安装目录</label>
+            <input id="setKiCadRoot" type="text" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="setKicadPy">KiCad Python（跑 pcbnew 出 PCB）</label>
+            <input id="setKicadPy" type="text" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="setEnginePy">引擎 Python（只需标准库）</label>
+            <input id="setEnginePy" type="text" spellcheck="false">
+          </div>
+          <div class="field">
+            <label for="setLcedaExe">嘉立创 EDA 专业版程序（导入用）</label>
+            <input id="setLcedaExe" type="text" spellcheck="false">
+          </div>
+          <div class="actions">
+            <button class="btn" id="btnEnv">重新检测</button>
+            <button class="ghost" id="btnDefaults">恢复默认</button>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-head"><h2>环境检查</h2><span class="muted" id="envVersion"></span></div>
+          <table class="env"><tbody id="envRows"></tbody></table>
+          <p class="note" id="envNote"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="overlay" id="helpOverlay" hidden>
+  <div class="sheet">
+    <h3>快捷键</h3>
+    <table class="keys">
+      <tr><td><kbd>/</kbd></td><td>聚焦搜索</td></tr>
+      <tr><td><kbd>↑ ↓</kbd></td><td>在列表里上下选</td></tr>
+      <tr><td><kbd>← →</kbd></td><td>换分类</td></tr>
+      <tr><td><kbd>空格</kbd></td><td>勾选 / 取消当前条</td></tr>
+      <tr><td><kbd>Enter</kbd></td><td>预览当前条</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>Enter</kbd></td><td>生成所选（没勾选就生成当前条）</td></tr>
+      <tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>全选筛出来的结果</td></tr>
+      <tr><td><kbd>Esc</kbd></td><td>停止任务 / 关浮层</td></tr>
+      <tr><td><kbd>滚轮</kbd></td><td>预览缩放</td></tr>
+      <tr><td><kbd>拖动</kbd></td><td>预览平移</td></tr>
+      <tr><td><kbd>?</kbd></td><td>开/关这个面板</td></tr>
+    </table>
+    <button class="btn" id="btnCloseHelp">知道了</button>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+<script src="app.js"></script>
+</body>
+</html>

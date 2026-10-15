@@ -1,0 +1,24 @@
+# 依赖
+node_modules/
+
+# 打包产物（AutoDraw-win32-x64 约 270MB）
+AutoDraw-win32-x64/
+dist/
+out/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# 本地运行时生成
+autodraw_settings.json
+
+# 系统 / 快捷方式
+*.lnk
+Thumbs.db
+desktop.ini
+
+# 编辑器
+.vscode/
+.idea/
